@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 GLFWwindow* window_init() {
-    GLFWwindow* window = glfwCreateWindow(640, 480, "OpenGL Triangle", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(640, 480, "OpenGL", NULL, NULL);
     if (!window)
     {
         glfwTerminate();

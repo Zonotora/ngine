@@ -3,6 +3,9 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -12,40 +15,53 @@
 
 typedef struct Vertex
 {
-    vec2 pos;
+    vec3 pos;
     vec3 col;
 } Vertex;
 
 
 static float x = 0.0;
 
-static const Vertex vertices[3] =
+static const Vertex vertices[8] =
 {
-    { { -0.6f, -0.4f }, { 1.f, 0.f, 0.f } },
-    { {  0.6f, -0.4f }, { 0.f, 1.f, 0.f } },
-    { {   0.f,  0.6f }, { 0.f, 0.f, 1.f } }
+    { { -0.5f,  0.5f,  0.5f }, { 1.f, 0.f, 0.f } },
+    { { -0.5f, -0.5f,  0.5f }, { 1.f, 0.f, 0.f } },
+    { {  0.5f, -0.5f,  0.5f }, { 1.f, 0.f, 0.f } },
+    { {  0.5f,  0.5f,  0.5f }, { 1.f, 0.f, 0.f } },
+    { { -0.5f,  0.5f, -0.5f }, { 1.f, 0.f, 0.f } },
+    { { -0.5f, -0.5f, -0.5f }, { 1.f, 0.f, 0.f } },
+    { {  0.5f, -0.5f, -0.5f }, { 1.f, 0.f, 0.f } },
+    { {  0.5f,  0.5f, -0.5f }, { 1.f, 0.f, 0.f } },
 };
 
 static const char* vertex_shader_text =
-"#version 330\n"
-"uniform mat4 MVP;\n"
-"in vec3 vCol;\n"
-"in vec2 vPos;\n"
-"out vec3 color;\n"
+"#version 330 core\n"
+"layout (location = 0) in vec3 aPos;      // Vertex position\n"
+"layout (location = 1) in vec3 aColor;    // Color\n"
+"layout (location = 2) in vec2 aTexCoord; // Texture coordinate\n"
+"\n"
+"out vec3 ourColor;\n"
+"out vec2 TexCoord;\n"
+"\n"
 "void main()\n"
 "{\n"
-"    gl_Position = MVP * vec4(vPos, 0.0, 1.0);\n"
-"    color = vCol;\n"
+"    gl_Position = vec4(aPos, 1.0);\n"
+"    ourColor = aColor;"
+"    TexCoord = aTexCoord;\n"
 "}\n";
 
-
 static const char* fragment_shader_text =
-"#version 330\n"
-"in vec3 color;\n"
-"out vec4 fragment;\n"
+"#version 330 core\n"
+"out vec4 FragColor;\n"
+"\n"
+"in vec3 ourColor;\n"
+"in vec2 TexCoord;\n"
+"\n"
+"uniform sampler2D texture1;\n"
+"\n"
 "void main()\n"
 "{\n"
-"    fragment = vec4(color, 1.0);\n"
+"    FragColor = texture(texture1, TexCoord) * vec4(ourColor, 1.0);\n"
 "}\n";
 
 static void error_callback(int error, const char* description)
@@ -95,15 +111,72 @@ int main(void)
 
     GLFWwindow* window = window_init();
 
+
+
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_callback);
 
     // NOTE: OpenGL error checks have been omitted for brevity
 
-    GLuint vertex_buffer;
-    glGenBuffers(1, &vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("container.jpg", &width, &height,
+    &nrChannels, 0);
+    printf("%d %d %d", width, height, nrChannels);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // float borderColor[] = { 1.0f, 1.0f, 0.0f, 1.0f };
+    // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    stbi_image_free(data);
+
+    float vertices[] = {
+    // positions        // colors          // texture coords
+     0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 1.0f, // top right
+     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,  1.0f, 0.0f, // bottom right
+    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0.0f, // bottom left
+    -0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 0.0f,  0.0f, 1.0f  // top left
+    };
+    unsigned int indices[] = {  // Note that we start from 0!
+        0, 1, 3,   // First triangle
+        1, 2, 3    // Second triangle
+    };
+
+    // Generate buffers and arrays
+    unsigned int VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    // Bind and set vertex buffers and attributes
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Position attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // Texture coordinate attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
 
     const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
@@ -121,20 +194,6 @@ int main(void)
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    const GLint mvp_location = glGetUniformLocation(program, "MVP");
-    const GLint vpos_location = glGetAttribLocation(program, "vPos");
-    const GLint vcol_location = glGetAttribLocation(program, "vCol");
-
-    GLuint vertex_array;
-    glGenVertexArrays(1, &vertex_array);
-    glBindVertexArray(vertex_array);
-    glEnableVertexAttribArray(vpos_location);
-    glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(Vertex), (void*) offsetof(Vertex, pos));
-    glEnableVertexAttribArray(vcol_location);
-    glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(Vertex), (void*) offsetof(Vertex, col));
-
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     while (!glfwWindowShouldClose(window))
     {
@@ -145,21 +204,20 @@ int main(void)
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        mat4x4 m, p, mvp;
-        mat4x4_identity(m);
-        mat4x4_translate(m, x, 0.0f, 0.0f);
-        mat4x4_rotate_Z(m, m, (float) glfwGetTime());
-        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-        mat4x4_mul(mvp, p, m);
-
         glUseProgram(program);
-        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
-        glBindVertexArray(vertex_array);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+    glDeleteProgram(program);
 
     glfwDestroyWindow(window);
 
