@@ -3,17 +3,21 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include "linmath.h"
-
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+
+#include "linmath.h"
+#include "window.h"
 
 typedef struct Vertex
 {
     vec2 pos;
     vec3 col;
 } Vertex;
+
+
+static float x = 0.0;
 
 static const Vertex vertices[3] =
 {
@@ -53,6 +57,28 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_Q && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+    // Input handling
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+    {
+        // Move player left
+        x -= 0.01f;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+    {
+        // Move player right
+        x += 0.01f;
+    }
+}
+
+static void mouse_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS)
+    {
+        printf("clicked\n");
+        fflush(stdout);
+    }
 }
 
 int main(void)
@@ -66,18 +92,11 @@ int main(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(640, 480, "OpenGL Triangle", NULL, NULL);
-    if (!window)
-    {
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
+
+    GLFWwindow* window = window_init();
 
     glfwSetKeyCallback(window, key_callback);
-
-    glfwMakeContextCurrent(window);
-    gladLoadGL(glfwGetProcAddress);
-    glfwSwapInterval(1);
+    glfwSetMouseButtonCallback(window, mouse_callback);
 
     // NOTE: OpenGL error checks have been omitted for brevity
 
@@ -128,6 +147,7 @@ int main(void)
 
         mat4x4 m, p, mvp;
         mat4x4_identity(m);
+        mat4x4_translate(m, x, 0.0f, 0.0f);
         mat4x4_rotate_Z(m, m, (float) glfwGetTime());
         mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
         mat4x4_mul(mvp, p, m);
