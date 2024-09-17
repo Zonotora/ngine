@@ -42,10 +42,11 @@ static const char* vertex_shader_text =
 "\n"
 "out vec3 ourColor;\n"
 "out vec2 TexCoord;\n"
+"uniform mat4 transform;\n"
 "\n"
 "void main()\n"
 "{\n"
-"    gl_Position = vec4(aPos, 1.0);\n"
+"    gl_Position = transform * vec4(aPos, 1.0);\n"
 "    ourColor = aColor;"
 "    TexCoord = aTexCoord;\n"
 "}\n";
@@ -194,6 +195,12 @@ int main(void)
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
+    mat4x4 trans;
+    mat4x4_identity(trans);
+    mat4x4_translate(trans, 0.5f, -0.5f, 0.0f);
+    mat4x4_rotate_Z(trans, trans, 20);
+    unsigned int transformLoc = glGetUniformLocation(program,"transform");
+
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     while (!glfwWindowShouldClose(window))
     {
@@ -205,6 +212,7 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(program);
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, (const GLfloat*)trans);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
