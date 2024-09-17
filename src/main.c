@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "camera.h"
 #include "linmath.h"
 #include "window.h"
 
@@ -90,6 +91,34 @@ static void mouse_callback(GLFWwindow *window, int button, int action,
     if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS) {
         printf("clicked\n");
         fflush(stdout);
+    }
+}
+void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front, vec3 up) {
+    const float speed = 2.5f * delta_time; // adjust accordingly
+    vec3 tmp_pos, tmp_front, tmp_cross, tmp_norm;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        vec3_scale(tmp_front, front, speed);
+        vec3_dup(tmp_pos, pos);
+        vec3_add(pos, tmp_pos, tmp_front);
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        vec3_scale(tmp_front, front, -speed);
+        vec3_dup(tmp_pos, pos);
+        vec3_add(pos, tmp_pos, tmp_front);
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        vec3_mul_cross(tmp_cross, front, up);
+        vec3_norm(tmp_norm, tmp_cross);
+        vec3_scale(tmp_front, tmp_norm, -speed);
+        vec3_dup(tmp_pos, pos);
+        vec3_add(pos, tmp_pos, tmp_front);
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        vec3_mul_cross(tmp_cross, front, up);
+        vec3_norm(tmp_norm, tmp_cross);
+        vec3_scale(tmp_front, tmp_norm, speed);
+        vec3_dup(tmp_pos, pos);
+        vec3_add(pos, tmp_pos, tmp_front);
     }
 }
 
@@ -241,8 +270,20 @@ int main(void) {
 
     glEnable(GL_DEPTH_TEST);
 
+    Camera camera = camera_init();
+    camera.position[2] = 3.0f;
+    vec3 target, direction, tmp, right;
+    vec3 up = {0.0f, 1.0f, 0.0f};
+    vec3_sub(tmp, camera.position, target);
+    vec3_norm(direction, tmp);
+    vec3_mul_cross(tmp, up, direction);
+    vec3_norm(right, tmp);
+    vec3_mul_cross(tmp, direction, right);
+    vec3 eye = {0.0f, 0.0f, 0.0f};
+    vec3 front = {0.0f, 0.0f, -1.0f};
+    float delta_time = 0.0f, last_frame = 0.0f;
+
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    int i = 0;
     while (!glfwWindowShouldClose(window)) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
@@ -250,8 +291,20 @@ int main(void) {
 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        float current_frame = glfwGetTime();
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+
+        processInput(window, delta_time, camera.position, front, up);
 
         glUseProgram(program);
+        // const float radius = 10.0f;
+        // float camX = sin(glfwGetTime()) * radius;
+        // float camZ = cos(glfwGetTime()) * radius;
+
+        vec3_add(tmp, camera.position, front);
+        mat4x4_look_at(view, camera.position, tmp, up);
+
         for (unsigned int i = 0; i < 10; i++) {
             mat4x4 m;
             mat4x4_identity(m);

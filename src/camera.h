@@ -10,7 +10,7 @@ typedef struct Camera {
 } Camera;
 
 
-Camera camera_create();
+Camera camera_init();
 void camera_reset(Camera* camera);
 
 #endif
