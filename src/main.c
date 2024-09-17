@@ -115,6 +115,13 @@ static void cursor_callback(GLFWwindow *window, double xpos, double ypos)
     if(pitch < -89.0f) pitch = -89.0f;
 }
 
+float zoom = 1.0f;
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    zoom -=  (float) yoffset;
+    if (zoom < 1.0f) zoom = 1.0f;
+    if (zoom > 45.0f) zoom = 45.0f;
+}
+
 void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front, vec3 up) {
     const float speed = 2.5f * delta_time; // adjust accordingly
     vec3 tmp_pos, tmp_front, tmp_cross, tmp_norm;
@@ -159,6 +166,7 @@ int main(void) {
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_callback);
     glfwSetCursorPosCallback(window, cursor_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // NOTE: OpenGL error checks have been omitted for brevity
 
@@ -286,7 +294,7 @@ int main(void) {
     // mat4x4_translate(trans, 0.5f, -0.5f, 0.0f);
     mat4x4_rotate_X(model, model, -20.0f);
     mat4x4_translate(view, 0.0f, 0.0f, -3.0f);
-    mat4x4_perspective(projection, 1.57f, 640.0f / 480.0f, 0.1f, 100.0f);
+    mat4x4_perspective(projection, zoom, 640.0f / 480.0f, 0.1f, 100.0f);
     unsigned int modelLoc = glGetUniformLocation(program, "model");
     unsigned int viewLoc = glGetUniformLocation(program, "view");
     unsigned int projectionLoc = glGetUniformLocation(program, "projection");
