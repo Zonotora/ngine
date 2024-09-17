@@ -42,11 +42,13 @@ static const char* vertex_shader_text =
 "\n"
 "out vec3 ourColor;\n"
 "out vec2 TexCoord;\n"
-"uniform mat4 transform;\n"
+"uniform mat4 model;\n"
+"uniform mat4 view;\n"
+"uniform mat4 projection;\n"
 "\n"
 "void main()\n"
 "{\n"
-"    gl_Position = transform * vec4(aPos, 1.0);\n"
+"    gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
 "    ourColor = aColor;"
 "    TexCoord = aTexCoord;\n"
 "}\n";
@@ -195,11 +197,17 @@ int main(void)
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    mat4x4 trans;
-    mat4x4_identity(trans);
-    mat4x4_translate(trans, 0.5f, -0.5f, 0.0f);
-    mat4x4_rotate_Z(trans, trans, 20);
-    unsigned int transformLoc = glGetUniformLocation(program,"transform");
+    mat4x4 model, view, projection;
+    mat4x4_identity(model);
+    mat4x4_identity(view);
+    mat4x4_identity(projection);
+    // mat4x4_translate(trans, 0.5f, -0.5f, 0.0f);
+    mat4x4_rotate_X(model, model, -20.0f);
+    mat4x4_translate(view, 0.0f, 0.0f, -3.0f);
+    mat4x4_perspective(projection, 1.57f, 640.0f / 480.0f, 0.1f, 100.0f);
+    unsigned int modelLoc = glGetUniformLocation(program,"model");
+    unsigned int viewLoc = glGetUniformLocation(program,"view");
+    unsigned int projectionLoc = glGetUniformLocation(program,"projection");
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     while (!glfwWindowShouldClose(window))
@@ -212,7 +220,9 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(program);
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, (const GLfloat*)trans);
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (const GLfloat*)model);
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, (const GLfloat*)view);
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, (const GLfloat*)projection);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
