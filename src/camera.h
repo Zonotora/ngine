@@ -5,7 +5,7 @@
 
 typedef struct Camera {
   vec3 position;
-  vec3 euler_rotation;
+  vec3 direction;
   vec4 view_matrix;
 } Camera;
 

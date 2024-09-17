@@ -93,6 +93,28 @@ static void mouse_callback(GLFWwindow *window, int button, int action,
         fflush(stdout);
     }
 }
+
+float last_x = 400 / 2;
+float last_y = 300 / 2;
+float yaw = 0.0f, pitch = 0.0f;
+static void cursor_callback(GLFWwindow *window, double xpos, double ypos)
+{
+    float offset_x = xpos - last_x;
+    float offset_y = ypos - last_y;
+    last_x = xpos;
+    last_y = ypos;
+
+    const float sensitivity = 0.001f;
+    offset_x += sensitivity;
+    offset_y += sensitivity;
+
+    yaw += offset_x;
+    pitch += offset_y;
+
+    if(pitch > 89.0f) pitch = 89.0f;
+    if(pitch < -89.0f) pitch = -89.0f;
+}
+
 void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front, vec3 up) {
     const float speed = 2.5f * delta_time; // adjust accordingly
     vec3 tmp_pos, tmp_front, tmp_cross, tmp_norm;
@@ -136,6 +158,7 @@ int main(void) {
 
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_callback);
+    glfwSetCursorPosCallback(window, cursor_callback);
 
     // NOTE: OpenGL error checks have been omitted for brevity
 
@@ -269,6 +292,7 @@ int main(void) {
     unsigned int projectionLoc = glGetUniformLocation(program, "projection");
 
     glEnable(GL_DEPTH_TEST);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     Camera camera = camera_init();
     camera.position[2] = 3.0f;
@@ -280,7 +304,6 @@ int main(void) {
     vec3_norm(right, tmp);
     vec3_mul_cross(tmp, direction, right);
     vec3 eye = {0.0f, 0.0f, 0.0f};
-    vec3 front = {0.0f, 0.0f, -1.0f};
     float delta_time = 0.0f, last_frame = 0.0f;
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -294,6 +317,15 @@ int main(void) {
         float current_frame = glfwGetTime();
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
+
+        float mult = 3.1415f / 180.0f;
+        float radian_yaw = yaw * mult;
+        float radian_pitch = -pitch * mult;
+        camera.direction[0] = cos(radian_yaw) * cos(radian_pitch);
+        camera.direction[1] = sin(radian_pitch);
+        camera.direction[2] = sin(radian_yaw) * cos(radian_pitch);
+        vec3 front;;
+        vec3_norm(front, camera.direction);
 
         processInput(window, delta_time, camera.position, front, up);
 
