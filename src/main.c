@@ -86,19 +86,21 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
     }
 }
 
+float last_x = -1.0;
+float last_y = -1.0;
+float yaw = 280.0f, pitch = 1.0f;
 static void mouse_callback(GLFWwindow *window, int button, int action,
                            int mods) {
     if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS) {
-        printf("clicked\n");
+        printf("yaw: %f pitch: %f\n", yaw, pitch);
         fflush(stdout);
     }
 }
-
-float last_x = 400 / 2;
-float last_y = 300 / 2;
-float yaw = 0.0f, pitch = 0.0f;
-static void cursor_callback(GLFWwindow *window, double xpos, double ypos)
-{
+static void cursor_callback(GLFWwindow *window, double xpos, double ypos) {
+    if (last_x < 0)
+        last_x = xpos;
+    if (last_y < 0)
+        last_y = ypos;
     float offset_x = xpos - last_x;
     float offset_y = ypos - last_y;
     last_x = xpos;
@@ -111,18 +113,23 @@ static void cursor_callback(GLFWwindow *window, double xpos, double ypos)
     yaw += offset_x;
     pitch += offset_y;
 
-    if(pitch > 89.0f) pitch = 89.0f;
-    if(pitch < -89.0f) pitch = -89.0f;
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
 }
 
 float zoom = 1.0f;
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    zoom -=  (float) yoffset;
-    if (zoom < 1.0f) zoom = 1.0f;
-    if (zoom > 45.0f) zoom = 45.0f;
+    zoom -= (float)yoffset;
+    if (zoom < 1.0f)
+        zoom = 1.0f;
+    if (zoom > 45.0f)
+        zoom = 45.0f;
 }
 
-void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front, vec3 up) {
+void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front,
+                  vec3 up) {
     const float speed = 2.5f * delta_time; // adjust accordingly
     vec3 tmp_pos, tmp_front, tmp_cross, tmp_norm;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
