@@ -11,51 +11,48 @@
 #include <stdlib.h>
 
 #include "camera.h"
+#include "cube.h"
 #include "linmath.h"
 #include "window.h"
 
 static const char *vertex_shader_text =
     "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;      // Vertex position\n"
-    "layout (location = 1) in vec3 aColor;    // Color\n"
-    "layout (location = 2) in vec2 aTexCoord; // Texture coordinate\n"
     "\n"
-    "out vec2 TexCoord;\n"
-    "uniform mat4 model;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 projection;\n"
+    // "uniform mat4 model;\n"
+    // "uniform mat4 view;\n"
+    // "uniform mat4 projection;\n"
     "\n"
     "void main()\n"
     "{\n"
-    "    gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-    "    TexCoord = aTexCoord;\n"
+    // "    gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
+    "    gl_Position = vec4(aPos, 1.0);\n"
     "}\n";
 
 static const char *fragment_shader_text =
     "#version 330 core\n"
     "out vec4 FragColor;\n"
-    "in vec2 TexCoord;\n"
     "\n"
-    "uniform sampler2D texture1;\n"
-    "uniform vec3 objectColor;\n"
-    "uniform vec3 lightColor;\n"
+    // "uniform vec3 objectColor;\n"
+    // "uniform vec3 lightColor;\n"
     "\n"
     "void main()\n"
     "{\n"
-    "    FragColor = texture(texture1, TexCoord) * vec4(lightColor * "
-    "objectColor, 1.0);\n"
+    "    FragColor = vec4(1.0);\n"
     "}\n";
 
-static const char *fragment_light_shader_text = "#version 330 core\n"
-                                                "out vec4 FragColor;\n"
-                                                "\n"
-                                                "void main()\n"
-                                                "{\n"
-                                                "    FragColor = vec4(1.0);\n"
-                                                "}\n";
 static void error_callback(int error, const char *description) {
     fprintf(stderr, "Error: %s\n", description);
 }
+
+void APIENTRY debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                              GLsizei length, const GLchar* message, const void* userParam) {
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+            type, severity, message);
+}
+
+
 static void key_callback(GLFWwindow *window, int key, int scancode, int action,
                          int mods) {
     if (key == GLFW_KEY_Q && action == GLFW_PRESS)
@@ -134,6 +131,35 @@ void processInput(GLFWwindow *window, float delta_time, vec3 pos, vec3 front,
     }
 }
 
+void init_buffers(unsigned int VAO, unsigned int VBO) {
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(CUBE_VERTICES_POS), CUBE_VERTICES_POS,
+                 GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+                          (void *)0);
+    glEnableVertexAttribArray(0);
+}
+
+GLuint init_shaders() {
+    const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
+    glCompileShader(vertex_shader);
+
+    const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
+    glCompileShader(fragment_shader);
+
+    const GLuint program = glCreateProgram();
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
+
+    glDeleteShader(fragment_shader);
+    glDeleteShader(vertex_shader);
+    return program;
+}
+
 int main(void) {
     glfwSetErrorCallback(error_callback);
 
@@ -143,105 +169,27 @@ int main(void) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    // Enable(GL_DEBUG_OUTPUT);
 
     GLFWwindow *window = window_init();
 
+    glDebugMessageCallback(debug_callback, 0);
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_callback);
     glfwSetCursorPosCallback(window, cursor_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-    // NOTE: OpenGL error checks have been omitted for brevity
-
-    int width, height, nrChannels;
-    unsigned char *data =
-        stbi_load("container.jpg", &width, &height, &nrChannels, 0);
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    // float borderColor[] = { 1.0f, 1.0f, 0.0f, 1.0f };
-    // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // Filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    stbi_image_free(data);
-
-    float vertices[] = {
-        -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  -1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
-        1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, 1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
-        1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
-        1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  -1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
-        1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  -1.0f, 1.0f};
-
     vec3 cube_pos = {0.0f, 0.0f, 0.0f};
     vec3 light_pos = {1.2f, 1.0f, 2.0f};
 
     // Generate buffers and arrays
-    unsigned int VBO, VAO, EBO, lightVAO;
+    unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
-    glGenVertexArrays(1, &lightVAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
-    glBindVertexArray(lightVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
-                          (void *)0);
-    glEnableVertexAttribArray(0);
-
-    // Bind and set vertex buffers and attributes
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
-                          (void *)0);
-    glEnableVertexAttribArray(0);
-
-    const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_text, NULL);
-    glCompileShader(vertex_shader);
-
-    const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
-    glCompileShader(fragment_shader);
-
-    const GLuint light_fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(light_fragment_shader, 1, &fragment_light_shader_text, NULL);
-    glCompileShader(light_fragment_shader);
-
-    const GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    glDeleteShader(fragment_shader);
-
-    const GLuint light_program = glCreateProgram();
-    glAttachShader(light_program, vertex_shader);
-    glAttachShader(light_program, light_fragment_shader);
-    glLinkProgram(light_program);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(light_fragment_shader);
+    init_buffers(VAO, VBO);
+    GLuint program = init_shaders();
 
     mat4x4 model, view, projection;
     mat4x4_identity(model);
@@ -251,13 +199,11 @@ int main(void) {
     mat4x4_rotate_X(model, model, -20.0f);
     mat4x4_translate(view, 0.0f, 0.0f, -3.0f);
     mat4x4_perspective(projection, zoom, 640.0f / 480.0f, 0.1f, 100.0f);
-    unsigned int modelLoc = glGetUniformLocation(program, "model");
-    unsigned int viewLoc = glGetUniformLocation(program, "view");
-    unsigned int projectionLoc = glGetUniformLocation(program, "projection");
-    unsigned int lightLoc = glGetUniformLocation(program, "lightColor");
-    unsigned int colorLoc = glGetUniformLocation(program, "objectColor");
-
-    unsigned int lightModelLoc = glGetUniformLocation(light_program, "model");
+    // unsigned int modelLoc = glGetUniformLocation(program, "model");
+    // unsigned int viewLoc = glGetUniformLocation(program, "view");
+    // unsigned int projectionLoc = glGetUniformLocation(program, "projection");
+    // unsigned int lightLoc = glGetUniformLocation(program, "lightColor");
+    // unsigned int colorLoc = glGetUniformLocation(program, "objectColor");
 
     glEnable(GL_DEPTH_TEST);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -276,18 +222,16 @@ int main(void) {
 
     vec3 lightColor = {1.0f, 1.0f, 1.0f};
     vec3 toyColor = {1.0f, 0.5f, 0.31f};
-    vec3 result = {lightColor[0] * toyColor[0], lightColor[1] * toyColor[1],
-                   lightColor[2] * toyColor[2]};
-    // vec3_mul_inner(result) = lightColor * toyColor; // = (1.0f, 0.5f, 0.31f);
+    // glUniform3f(lightLoc, lightColor[0], lightColor[1], lightColor[2]);
+    // glUniform3f(colorLoc, toyColor[0], toyColor[1], toyColor[2]);
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     while (!glfwWindowShouldClose(window)) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
-        const float ratio = width / (float)height;
-
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         float current_frame = glfwGetTime();
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
@@ -303,46 +247,29 @@ int main(void) {
 
         processInput(window, delta_time, camera.position, front, up);
 
-        glUseProgram(program);
-
-
         vec3_add(tmp, camera.position, front);
         mat4x4_look_at(view, camera.position, tmp, up);
 
+        // glUniform3f(lightLoc, lightColor[0], lightColor[1], lightColor[2]);
+        // glUniform3f(colorLoc, toyColor[0], toyColor[1], toyColor[2]);
+        glUseProgram(program);
         mat4x4 m, scaled;
         mat4x4_identity(m);
         mat4x4_translate(m, cube_pos[0], cube_pos[1], cube_pos[2]);
 
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (const GLfloat *)m);
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (const GLfloat *)m);
+        // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, (const GLfloat *)view);
+        // glUniformMatrix4fv(projectionLoc, 1, GL_FALSE,
+        //                    (const GLfloat *)projection);
 
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, (const GLfloat *)view);
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE,
-                           (const GLfloat *)projection);
-
-        glUniform3f(lightLoc, lightColor[0], lightColor[1], lightColor[2]);
-        glUniform3f(colorLoc, toyColor[0], toyColor[1], toyColor[2]);
-
-        // light
-        glUseProgram(light_program);
-        mat4x4_identity(m);
-        mat4x4_translate_in_place(m, light_pos[0], light_pos[1], light_pos[2]);
-        mat4x4_scale(scaled, m, 1.2f);
-        glUniformMatrix4fv(lightModelLoc, 1, GL_FALSE, (const GLfloat *)scaled);
-        glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, (const GLfloat *)view);
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE,
-                           (const GLfloat *)projection);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
     glDeleteProgram(program);
 
     glfwDestroyWindow(window);

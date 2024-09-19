@@ -418,9 +418,11 @@ int main(void) {
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE,
                            (const GLfloat *)projection);
 
-        glUniformMatrix4fv(lightLoc, 1, GL_FALSE, (const GLfloat *)lightColor);
-        glUniformMatrix4fv(colorLoc, 1, GL_FALSE, (const GLfloat *)toyColor);
+        // glUniformMatrix4fv(lightLoc, 1, GL_FALSE, (const GLfloat *)lightColor);
+        // glUniformMatrix4fv(colorLoc, 1, GL_FALSE, (const GLfloat *)toyColor);
 
+        glUniform3f(lightLoc, lightColor[0], lightColor[1], lightColor[2]);
+        glUniform3f(colorLoc, toyColor[0], toyColor[1], toyColor[2]);
 
         glUseProgram(light_program);
         // light
